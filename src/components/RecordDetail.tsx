@@ -26,7 +26,7 @@ export function RecordDetail({ record }: { record: PurchaseRecord }) {
         throw new Error(data.error || "删除失败");
       }
       setConfirmOpen(false);
-      router.push("/");
+      router.push("/history");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "删除失败");
@@ -75,7 +75,8 @@ export function RecordDetail({ record }: { record: PurchaseRecord }) {
           {record.photoName ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={fileUrl(record.id, "photo")}
+              key={`${record.photoName}-${record.updatedAt}`}
+              src={fileUrl(record.id, "photo", `${record.photoName}-${record.updatedAt}`)}
               alt={record.title}
               className="w-full object-cover"
             />
@@ -126,7 +127,7 @@ export function RecordDetail({ record }: { record: PurchaseRecord }) {
           <div className="mt-8 flex flex-wrap gap-3">
             {record.invoiceName ? (
               <a
-                href={fileUrl(record.id, "invoice")}
+                  href={fileUrl(record.id, "invoice", record.invoiceName)}
                 target="_blank"
                 rel="noreferrer"
                 className="rounded-full bg-[#cfc3ae] px-4 py-2 text-sm text-ink hover:bg-[#c4b79f]"
@@ -162,9 +163,9 @@ export function RecordDetail({ record }: { record: PurchaseRecord }) {
             className="w-full max-w-sm rounded-3xl border border-line bg-surface p-6 shadow-[0_20px_46px_rgba(80,60,40,0.16)]"
             onClick={(event) => event.stopPropagation()}
           >
-            <h3 className="font-serif text-xl text-ink">确认删除</h3>
+            <h3 className="font-serif text-xl text-ink">移入历史记录</h3>
             <p className="mt-3 text-sm leading-6 text-ink-soft">
-              确定删除《{record.title}》这条采购记录吗？删除后无法恢复。
+              确定删除《{record.title}》吗？书目会从列表中隐藏，文件仍会保留，可在历史记录中恢复。
             </p>
             <div className="mt-6 flex justify-end gap-3">
               <button
@@ -181,7 +182,7 @@ export function RecordDetail({ record }: { record: PurchaseRecord }) {
                 onClick={confirmDelete}
                 className={`${actionBtn} bg-[#cfc3ae] text-ink-soft hover:bg-[#c4b79f] disabled:opacity-60`}
               >
-                {pending ? "删除中…" : "删除"}
+                {pending ? "处理中…" : "移入历史"}
               </button>
             </div>
           </div>

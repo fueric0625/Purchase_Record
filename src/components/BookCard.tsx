@@ -13,7 +13,8 @@ export function BookCard({ record }: { record: PurchaseRecord }) {
           // Uploaded covers are served from the local API, not the Next image optimizer.
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={fileUrl(record.id, "photo")}
+            key={`${record.id}-${record.photoName}-${record.updatedAt}`}
+            src={fileUrl(record.id, "photo", `${record.photoName}-${record.updatedAt}`)}
             alt={record.title}
             className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
           />

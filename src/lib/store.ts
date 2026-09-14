@@ -99,26 +99,49 @@ async function seedSampleIfEmpty(records: PurchaseRecord[]) {
     extraDocOriginalName: extraCopied ? "2023.10.25-自我突围 -采购信息.docx" : null,
     createdAt: now,
     updatedAt: now,
+    deletedAt: null,
   };
 
   await writeRecordsFile([sample]);
   return [sample];
 }
 
-export async function listRecords(): Promise<PurchaseRecord[]> {
+async function loadAllRecords(): Promise<PurchaseRecord[]> {
   await ensureDirs();
-  const records = await backfillGeneratedDocs(
-    await seedSampleIfEmpty(await readRecordsFile()),
-  );
+  return backfillGeneratedDocs(await seedSampleIfEmpty(await readRecordsFile()));
+}
+
+function isDeleted(record: PurchaseRecord) {
+  return Boolean(record.deletedAt);
+}
+
+function compareCreatedAt(a: PurchaseRecord, b: PurchaseRecord) {
+  const createdCmp = (a.createdAt || "").localeCompare(b.createdAt || "");
+  return createdCmp !== 0 ? createdCmp : a.id.localeCompare(b.id);
+}
+
+export async function listRecords(): Promise<PurchaseRecord[]> {
+  const records = (await loadAllRecords()).filter((item) => !isDeleted(item));
   return [...records].sort((a, b) => {
     const dateCmp = (b.purchaseDate || "").localeCompare(a.purchaseDate || "");
-    return dateCmp !== 0 ? dateCmp : b.updatedAt.localeCompare(a.updatedAt);
+    return dateCmp !== 0 ? dateCmp : -compareCreatedAt(a, b);
   });
 }
 
-export async function getRecord(id: string): Promise<PurchaseRecord | null> {
-  const records = await listRecords();
-  return records.find((item) => item.id === id) ?? null;
+export async function listHistoryRecords(): Promise<PurchaseRecord[]> {
+  const records = await loadAllRecords();
+  return [...records].sort(compareCreatedAt);
+}
+
+export async function getRecord(
+  id: string,
+  options?: { includeDeleted?: boolean },
+): Promise<PurchaseRecord | null> {
+  const records = await loadAllRecords();
+  const record = records.find((item) => item.id === id) ?? null;
+  if (!record) return null;
+  if (isDeleted(record) && !options?.includeDeleted) return null;
+  return record;
 }
 
 function normalizeInput(input: RecordInput): RecordInput {
@@ -137,7 +160,7 @@ function normalizeInput(input: RecordInput): RecordInput {
 }
 
 export async function createRecord(input: RecordInput): Promise<PurchaseRecord> {
-  const records = await listRecords();
+  const records = await loadAllRecords();
   const now = new Date().toISOString();
   const record: PurchaseRecord = {
     id: randomUUID(),
@@ -149,6 +172,7 @@ export async function createRecord(input: RecordInput): Promise<PurchaseRecord> 
     extraDocOriginalName: null,
     createdAt: now,
     updatedAt: now,
+    deletedAt: null,
   };
   records.push(record);
   await writeRecordsFile(records);
@@ -159,9 +183,9 @@ export async function updateRecord(
   id: string,
   input: RecordInput,
 ): Promise<PurchaseRecord | null> {
-  const records = await listRecords();
+  const records = await loadAllRecords();
   const index = records.findIndex((item) => item.id === id);
-  if (index === -1) return null;
+  if (index === -1 || isDeleted(records[index])) return null;
   records[index] = await writeGeneratedWord({
     ...records[index],
     ...normalizeInput(input),
@@ -172,10 +196,36 @@ export async function updateRecord(
 }
 
 export async function deleteRecord(id: string): Promise<boolean> {
-  const records = await listRecords();
-  const next = records.filter((item) => item.id !== id);
-  if (next.length === records.length) return false;
-  await writeRecordsFile(next);
+  const records = await loadAllRecords();
+  const index = records.findIndex((item) => item.id === id);
+  if (index === -1 || isDeleted(records[index])) return false;
+  const now = new Date().toISOString();
+  records[index] = {
+    ...records[index],
+    deletedAt: now,
+    updatedAt: now,
+  };
+  await writeRecordsFile(records);
+  return true;
+}
+
+export async function restoreRecord(id: string): Promise<PurchaseRecord | null> {
+  const records = await loadAllRecords();
+  const index = records.findIndex((item) => item.id === id);
+  if (index === -1 || !isDeleted(records[index])) return null;
+  records[index] = {
+    ...records[index],
+    deletedAt: null,
+  };
+  await writeRecordsFile(records);
+  return records[index];
+}
+
+export async function purgeRecord(id: string): Promise<boolean> {
+  const records = await loadAllRecords();
+  const record = records.find((item) => item.id === id);
+  if (!record || !isDeleted(record)) return false;
+  await writeRecordsFile(records.filter((item) => item.id !== id));
   await fs.rm(path.join(UPLOADS_DIR, id), { recursive: true, force: true });
   return true;
 }
@@ -194,9 +244,9 @@ export async function saveUpload(
   kind: Exclude<UploadKind, "purchase">,
   file: File,
 ): Promise<PurchaseRecord | null> {
-  const records = await listRecords();
+  const records = await loadAllRecords();
   const index = records.findIndex((item) => item.id === id);
-  if (index === -1) return null;
+  if (index === -1 || isDeleted(records[index])) return null;
 
   const ext = path.extname(file.name).toLowerCase() || defaultExt(kind);
   const fileName =
@@ -260,9 +310,9 @@ export async function getUploadPath(
 }
 
 export async function generatePurchaseDoc(id: string): Promise<PurchaseRecord | null> {
-  const records = await seedSampleIfEmpty(await readRecordsFile());
+  const records = await loadAllRecords();
   const index = records.findIndex((item) => item.id === id);
-  if (index === -1) return null;
+  if (index === -1 || isDeleted(records[index])) return null;
   records[index] = await writeGeneratedWord(await migrateLegacyExtra(records[index]));
   await writeRecordsFile(records);
   return records[index];
@@ -273,6 +323,10 @@ async function backfillGeneratedDocs(records: PurchaseRecord[]) {
   const next: PurchaseRecord[] = [];
   for (const record of records) {
     const migrated = await migrateLegacyExtra(record);
+    if (isDeleted(migrated)) {
+      next.push(withoutLegacyFlag(migrated));
+      continue;
+    }
     const purchasePath = migrated.purchaseDocName
       ? path.join(UPLOADS_DIR, migrated.id, migrated.purchaseDocName)
       : "";

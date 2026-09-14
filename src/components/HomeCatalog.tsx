@@ -43,8 +43,8 @@ export function HomeCatalog({ records }: { records: PurchaseRecord[] }) {
 
     return visible.sort((a, b) => {
       const dateCmp = (a.purchaseDate || "").localeCompare(b.purchaseDate || "");
-      const updatedCmp = a.updatedAt.localeCompare(b.updatedAt);
-      const cmp = dateCmp !== 0 ? dateCmp : updatedCmp;
+      const createdCmp = (a.createdAt || "").localeCompare(b.createdAt || "");
+      const cmp = dateCmp !== 0 ? dateCmp : createdCmp;
       return sortOrder === "newest" ? -cmp : cmp;
     });
   }, [query, records, sortOrder, missingInvoiceOnly, missingInvoice]);
@@ -53,12 +53,26 @@ export function HomeCatalog({ records }: { records: PurchaseRecord[] }) {
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-5 py-8 sm:px-8 sm:py-10">
       <AppHeader
         action={
-          <Link
-            href="/new"
-            className="inline-flex h-10 items-center justify-center rounded-full bg-[#cfc3ae] px-5 text-sm font-normal leading-none text-ink-soft hover:bg-[#c4b79f]"
-          >
-            新增采购
-          </Link>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href="/stats"
+              className="inline-flex h-10 items-center justify-center rounded-full border border-line px-5 text-sm font-normal leading-none text-ink-soft hover:bg-paper-deep"
+            >
+              统计
+            </Link>
+            <Link
+              href="/history"
+              className="inline-flex h-10 items-center justify-center rounded-full border border-line px-5 text-sm font-normal leading-none text-ink-soft hover:bg-paper-deep"
+            >
+              历史记录
+            </Link>
+            <Link
+              href="/new"
+              className="inline-flex h-10 items-center justify-center rounded-full bg-[#cfc3ae] px-5 text-sm font-normal leading-none text-ink-soft hover:bg-[#c4b79f]"
+            >
+              新增采购
+            </Link>
+          </div>
         }
       />
 

@@ -49,7 +49,9 @@ export function RecordForm({ mode, record }: RecordFormProps) {
 
   const photoPreview = useMemo(() => {
     if (photo) return URL.createObjectURL(photo);
-    if (record?.photoName) return fileUrl(record.id, "photo");
+    if (record?.photoName) {
+      return fileUrl(record.id, "photo", `${record.photoName}-${record.updatedAt}`);
+    }
     return "";
   }, [photo, record]);
 

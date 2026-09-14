@@ -51,7 +51,7 @@ export async function GET(
     headers: {
       "Content-Type": MIME[ext] ?? "application/octet-stream",
       "Content-Disposition": contentDisposition(dispositionType, downloadName),
-      "Cache-Control": kind === "extra" || kind === "purchase" ? "no-store" : "public, max-age=3600",
+      "Cache-Control": "no-store, no-cache, must-revalidate",
     },
   });
 }
