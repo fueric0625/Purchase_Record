@@ -1,36 +1,230 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 图书采购资料库
 
-## Getting Started
+本地使用的图书采购归档程序：把每次采购的书目信息、封面照片、发票 PDF，以及手工收集的 Word 补充文档集中存放，支持展示、查询、新增和修改。
 
-First, run the development server:
+对方电脑**不必安装** Node.js、Python 或其它开发环境。把打包好的文件夹拷过去，双击启动即可。
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+---
+
+## 能做什么
+
+| 功能 | 说明 |
+| --- | --- |
+| 展示 | 首页以封面墙展示书名、作者、采购时间和金额 |
+| 查询 | 按书名、作者、采购时间，也可搜申请人、采购人员、经费 |
+| 排序 | 按采购时间从新到旧 / 从旧到新 |
+| 新增 | 填写采购条目，上传图书照片；发票和补充 Word 可选 |
+| 修改 | 改字段、替换照片 / 发票 / 补充文档 |
+| 删除 | 二次确认后删除该条及附件 |
+| 采购信息 Word | 每本书都会按当前条目自动生成，修改保存后会更新；空项留空 |
+| 补充文档 | 新增时手动上传的 Word，与系统生成的采购信息分开保存，下载时保留原文件名 |
+| 发票提醒 | 未上传发票的书在封面标注「需补充发票」，首页可一键筛出 |
+
+每条记录对应原先手工 Word 里的字段：
+
+- 书名、作者
+- 采购时间、购买申请、采购人员
+- 购买数量、费用、报销经费
+- 图书去向、备注
+- 图书照片、图书发票（PDF）、补充文档（Word）
+
+---
+
+## 给使用者：绿色包怎么用
+
+打包完成后，发布目录是：
+
+```
+release/PurchaseArchive/
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+把**整个文件夹**拷到 U 盘或另一台 Windows 电脑。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. 双击 `Start.bat`
+2. 稍等几秒，浏览器会打开资料库页面
+3. 用完后**关闭黑色窗口**，程序即退出
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+不想看到黑色窗口时，可双击 `StartHidden.vbs`。无黑窗退出方式见文末「常见问题」。
 
-## Learn More
+系统要求：Windows 10 或 Windows 11。无需安装任何语言环境。
 
-To learn more about Next.js, take a look at the following resources:
+### 数据在哪、如何备份
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+所有数据都在绿色包自己的 `data` 文件夹里，和程序放在一起：
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+data/
+  records.json          # 全部书目条目
+  uploads/
+    <每本书一个文件夹>/
+      photo.jpg/png     # 封面照片
+      invoice.pdf       # 发票（如有）
+      purchase.docx     # 系统生成的采购信息
+      原文件名.docx     # 手动上传的补充文档（如有）
+```
 
-## Deploy on Vercel
+备份或迁移：复制整个 `PurchaseArchive` 文件夹即可。不要只拷启动文件而丢掉 `data`。
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 给开发者：源码如何运行
+
+### 环境
+
+- Windows 10 / 11
+- [Node.js](https://nodejs.org/) 18 或更高（开发机已用 24 验证）
+- 建议使用本机 `npm`
+
+本仓库在部分电脑上无法加载 Next.js 的原生加速组件，因此开发与构建都走 Webpack：`next dev --webpack` / `next build --webpack`。
+
+### 安装并启动开发环境
+
+在项目根目录 `E:\purchase_record`（或你的克隆目录）执行：
+
+```bash
+npm install
+npm run dev
+```
+
+浏览器打开 [http://localhost:3000](http://localhost:3000)。
+
+开发时的数据写在项目下的 `data/`，不会进 git。
+
+### 常用命令
+
+```bash
+npm run dev      # 开发模式
+npm run build    # 生产构建（standalone）
+npm start        # 以 next start 运行构建结果（需先 build）
+npm run pack     # 构建并生成绿色发布包到 release/PurchaseArchive
+npm run lint     # 代码检查
+```
+
+### 源码结构
+
+```
+src/
+  app/                 # 页面与 API
+    page.tsx           # 首页封面墙
+    new/page.tsx       # 新增
+    records/[id]/      # 详情、修改
+    api/records/       # 增删改查
+    api/files/         # 照片 / 发票 / 文档下载
+  components/          # 界面组件
+  lib/
+    store.ts           # JSON + 本地文件存储
+    word.ts            # 自动生成采购信息 Word
+    types.ts
+    format.ts
+data/                  # 运行时数据（本地，不提交）
+scripts/
+  pack.mjs             # 打包脚本
+  launcher.mjs         # 绿色包启动器
+```
+
+数据目录可通过环境变量覆盖：
+
+```bash
+set PURCHASE_DATA_DIR=D:\archive\books
+```
+
+未设置时，使用当前工作目录下的 `data/`。绿色包启动器会自动指到自身旁边的 `data`。
+
+---
+
+## 使用说明（功能细节）
+
+### 首页
+
+- 封面网格展示图书。
+- 右上角「新增采购」。
+- 查询框支持书名、作者、日期等。
+- 「从新到旧 / 从旧到新」按采购时间排序。
+- 右侧显示采购条目数、累计费用和册数。
+- 若有书未上传发票，底部出现「待补充」提示；点提示行末尾箭头，只显示这些书；再点一次恢复全部。
+
+### 新增
+
+必填：书名、采购时间、图书照片。
+
+选填：作者、购买申请、采购人员、数量、费用、报销经费、去向、备注、发票 PDF、补充 Word。
+
+没有发票可以先保存，之后在「修改」里补传。
+
+不上传补充 Word 不影响使用；系统仍会生成「采购信息」Word。
+
+### 详情
+
+- 查看全部字段、封面、发票、采购信息 Word。
+- 「修改」进入编辑页；「删除」会弹出确认框。
+- 「下载采购信息」始终可用，内容随最近一次保存更新。
+- 补充文档显示原文件名，下载时不改名。
+
+### 自动生成的 Word 格式
+
+```
+书名：
+作者：
+时间：
+购买申请：
+采购人员：
+购买数量：
+费用：
+报销经费：
+图书去向：
+备注：
+```
+
+未填写的项只保留标题，后面留空。手动上传的补充文档不会被这套生成逻辑覆盖。
+
+---
+
+## 如何重新打包
+
+在已经 `npm install` 的开发机上：
+
+```bash
+npm run pack
+```
+
+脚本会：
+
+1. 执行生产构建（`next build --webpack`，输出 standalone）
+2. 把程序、静态资源和一份 Node 运行时复制到 `release/PurchaseArchive/`
+3. 如项目里已有 `data/`，一并复制进去（方便你带着现有书目分发）
+4. 写入启动脚本和使用说明
+
+完成后把 `release/PurchaseArchive` **整个文件夹**发给别人或拷到 U 盘。
+
+体积大约一百多 MB，因为内含 Node 运行时，这样对方电脑不用装环境。
+
+---
+
+## 常见问题
+
+**浏览器没有自动打开**  
+手动访问 <http://127.0.0.1:17300>（绿色包）或 <http://localhost:3000>（开发模式）。
+
+**端口被占用**  
+先关掉已经打开的资料库黑色窗口，或结束多余的 `node.exe` 后再启动。开发服务占用 3000，绿色包占用 17300，一般可以同时开。
+
+**杀毒软件拦截 `runtime\node.exe`**  
+这是随包带的官方 Node 运行时，不是病毒。添加信任或放行后重试。
+
+**无黑窗模式如何退出**  
+`StartHidden.vbs` 在后台运行。退出可在任务管理器中结束 `node.exe`，或再开一次 `Start.bat` 后关闭黑色窗口。
+
+**补充文档下载名字不对**  
+请用详情页补充文档一行里的「下载」。程序会使用上传时的原文件名。
+
+**采购信息 Word 没有随修改更新**  
+确认点的是「保存修改」，而不是只改了页面没保存。保存成功后再次下载即可。
+
+**这台电脑开发时提示 Turbopack / SWC 被策略拦截**  
+属已知情况，本项目已改用 Webpack。不要去掉 `package.json` 里的 `--webpack`。
+
+---
+
+## 许可与范围
+
+供内部归档采购记录使用。数据保存在使用该程序的电脑（或 U 盘）本地，不会上传到互联网。
